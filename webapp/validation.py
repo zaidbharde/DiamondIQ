@@ -6,12 +6,12 @@ COLORS = ["D", "E", "F", "G", "H", "I", "J"]
 CLARITIES = ["I1", "SI2", "SI1", "VS2", "VS1", "VVS2", "VVS1", "IF"]
 
 NUMERIC_RULES = {
-    "carat": {"label": "Carat", "min": 0.1, "max": 5.0},
-    "depth": {"label": "Depth", "min": 40.0, "max": 80.0},
-    "table": {"label": "Table", "min": 40.0, "max": 80.0},
-    "x": {"label": "X dimension", "min": 1.0, "max": 15.0},
-    "y": {"label": "Y dimension", "min": 1.0, "max": 15.0},
-    "z": {"label": "Z dimension", "min": 0.5, "max": 10.0},
+    "carat": {"label": "Carat", "min": 0.1, "max": 5.0, "required": True},
+    "depth": {"label": "Depth", "min": 40.0, "max": 80.0, "default": 61.5},
+    "table": {"label": "Table", "min": 40.0, "max": 80.0, "default": 57.0},
+    "x": {"label": "X dimension", "min": 1.0, "max": 15.0, "default": 5.5},
+    "y": {"label": "Y dimension", "min": 1.0, "max": 15.0, "default": 5.5},
+    "z": {"label": "Z dimension", "min": 0.5, "max": 10.0, "default": 3.5},
 }
 
 
@@ -21,6 +21,16 @@ def sanitize_payload(payload):
 
     for field, rule in NUMERIC_RULES.items():
         raw_value = payload.get(field, "")
+
+        if not raw_value or str(raw_value).strip() == "":
+            if rule.get("required"):
+                errors[field] = f"{rule['label']} is required."
+                continue
+            default = rule.get("default")
+            if default is not None:
+                data[field] = default
+            continue
+
         try:
             value = float(raw_value)
         except (TypeError, ValueError):

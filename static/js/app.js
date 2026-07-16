@@ -100,8 +100,11 @@ function validateField(input) {
   error.textContent = "";
 
   if (!input.value || input.value.trim() === "") {
-    error.textContent = "Required";
-    return false;
+    if (input.required || input.hasAttribute("required")) {
+      error.textContent = "Required";
+      return false;
+    }
+    return true;
   }
 
   if (input.type === "number" || input.tagName === "INPUT") {
