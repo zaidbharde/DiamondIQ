@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS predictions (
     quality_score REAL DEFAULT NULL,
     recommendation_label TEXT DEFAULT NULL,
     recommendation_badge TEXT DEFAULT NULL,
+    sell_signal TEXT DEFAULT NULL,
+    comparable_avg_price REAL DEFAULT NULL,
     source TEXT DEFAULT 'manual',
     xai_json TEXT DEFAULT NULL
 );
@@ -28,14 +30,23 @@ COLUMNS_TO_ADD = [
     "quality_score REAL DEFAULT NULL",
     "recommendation_label TEXT DEFAULT NULL",
     "recommendation_badge TEXT DEFAULT NULL",
+    "sell_signal TEXT DEFAULT NULL",
+    "comparable_avg_price REAL DEFAULT NULL",
     "source TEXT DEFAULT 'manual'",
     "xai_json TEXT DEFAULT NULL",
 ]
 
 
+class ClosingConnection(sqlite3.Connection):
+    def __exit__(self, exc_type, exc_value, traceback):
+        result = super().__exit__(exc_type, exc_value, traceback)
+        self.close()
+        return result
+
+
 def get_connection(database_path):
     Path(database_path).parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(database_path)
+    conn = sqlite3.connect(database_path, factory=ClosingConnection)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -60,9 +71,9 @@ def insert_prediction(database_path, payload):
                 created_at, price, confidence, model_used, prediction_time_ms,
                 explanation, inputs_json, contributions_json,
                 quality_score, recommendation_label, recommendation_badge,
-                source, xai_json
+                sell_signal, comparable_avg_price, source, xai_json
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 payload["created_at"],
@@ -76,6 +87,8 @@ def insert_prediction(database_path, payload):
                 payload.get("quality_score"),
                 payload.get("recommendation_label"),
                 payload.get("recommendation_badge"),
+                (payload.get("sell_signal") or {}).get("signal"),
+                (payload.get("sell_signal") or {}).get("comparable_avg_price"),
                 payload.get("source", "manual"),
                 json.dumps(payload.get("xai")) if payload.get("xai") else None,
             ),
@@ -230,6 +243,7 @@ def export_predictions_csv(predictions):
         [
             "id", "created_at", "price", "confidence", "model_used",
             "prediction_time_ms", "quality_score", "recommendation", "source",
+            "sell_signal", "comparable_avg_price",
             "carat", "depth", "table", "x", "y", "z",
             "cut", "color", "clarity", "explanation",
         ]
@@ -243,6 +257,7 @@ def export_predictions_csv(predictions):
                 item["prediction_time_ms"],
                 item.get("quality_score"), item.get("recommendation_label"),
                 item.get("source"),
+                item.get("sell_signal"), item.get("comparable_avg_price"),
                 inputs["carat"], inputs["depth"], inputs["table"],
                 inputs["x"], inputs["y"], inputs["z"],
                 inputs["cut"], inputs["color"], inputs["clarity"],
@@ -264,6 +279,8 @@ def export_predictions_json(predictions):
                 "quality_score": item.get("quality_score"),
                 "recommendation": item.get("recommendation_label"),
                 "source": item.get("source"),
+                "sell_signal": item.get("sell_signal"),
+                "comparable_avg_price": item.get("comparable_avg_price"),
                 "inputs": item["inputs"],
                 "explanation": item["explanation"],
             }

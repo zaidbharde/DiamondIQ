@@ -7,6 +7,23 @@ let contributionChart;
 let featureChart;
 let comparisonChart;
 
+function cssVar(name) {
+  return getComputedStyle(document.body).getPropertyValue(name).trim();
+}
+
+function chartPalette() {
+  return {
+    accent: cssVar("--accent") || "#5ee7ff",
+    violet: cssVar("--accent-2") || "#a78bfa",
+    emerald: cssVar("--accent-3") || "#34d399",
+    gold: cssVar("--gold") || "#f5c76b",
+    danger: cssVar("--danger") || "#fb7185",
+    muted: cssVar("--text-muted") || "#7e8da4",
+    text: cssVar("--text") || "#f4f8ff",
+    grid: "rgba(180,214,255,0.12)",
+  };
+}
+
 const formatter = new Intl.NumberFormat("en-IN", {
   style: "currency",
   currency: "INR",
@@ -21,6 +38,40 @@ const numericRules = {
   y: [1, 15, "Y must be between 1.0 and 15.0 mm"],
   z: [0.5, 10, "Z must be between 0.5 and 10.0 mm"],
 };
+
+function sellSignalMeta(signal) {
+  const map = {
+    sell_now: { label: "Sell Now", className: "sell-now", icon: "trending-up" },
+    hold: { label: "Hold", className: "hold", icon: "pause" },
+    wait: { label: "Wait", className: "wait", icon: "clock" },
+    insufficient_data: { label: "Not enough data yet", className: "insufficient", icon: "info" },
+  };
+  return map[signal] || map.insufficient_data;
+}
+
+function renderSellSignal(signal, compact = false) {
+  const meta = sellSignalMeta(signal?.signal || signal);
+  const reasoning = signal?.reasoning || "This relative signal needs more prediction history.";
+  if (compact) {
+    return `<span class="sell-signal-badge compact ${meta.className}">${meta.label}</span>`;
+  }
+  return `
+    <div class="sell-signal-panel">
+      <div class="sell-signal-main">
+        <span class="sell-signal-badge ${meta.className}">
+          <i data-lucide="${meta.icon}" style="width:14px;height:14px;"></i>
+          ${meta.label}
+        </span>
+        <span class="sell-signal-note" title="This is a relative signal based on your own prediction history, not live market data.">i</span>
+      </div>
+      <p>${reasoning}</p>
+      <details>
+        <summary>How this signal is calculated</summary>
+        <span>This is a relative signal based on your own prediction history, not live market data.</span>
+      </details>
+    </div>
+  `;
+}
 
 /* ─── Navigation ─── */
 function showPage(pageId) {
@@ -137,6 +188,7 @@ function renderResult(prediction) {
   const qual = report.quality_score || 0;
   const rec = report.recommendation || { label: "Standard", badge: "average" };
   const conf = prediction.confidence;
+  const sellSignal = prediction.sell_signal || { signal: "insufficient_data" };
 
   // Input summary items
   const inputItems = [
@@ -164,16 +216,40 @@ function renderResult(prediction) {
 
   const badgeClass = rec.badge === "premium" ? "badge-premium" : rec.badge === "good" ? "badge-good" : rec.badge === "average" ? "badge-average" : "badge-review";
 
-  const qualBarColor = qual >= 80 ? "#2dd4bf" : qual >= 60 ? "#fbbf24" : qual >= 40 ? "#fb7185" : "#94a3b8";
-  const confBarColor = conf >= 85 ? "#2dd4bf" : conf >= 65 ? "#fbbf24" : "#fb7185";
+  const palette = chartPalette();
+  const qualBarColor = qual >= 80 ? palette.emerald : qual >= 60 ? palette.gold : qual >= 40 ? palette.danger : palette.muted;
+  const confBarColor = conf >= 85 ? palette.emerald : conf >= 65 ? palette.gold : palette.danger;
 
   container.innerHTML = `
-    <div class="result-card">
-      <p class="result-label">Estimated Market Value</p>
-      <div class="result-price">${formatter.format(prediction.price)}</div>
-      <div class="result-badge">
-        <span>Model <strong>${prediction.model_used}</strong></span>
-        <span>${prediction.prediction_time_ms} ms</span>
+    <div class="result-hero-grid">
+      <div class="result-card">
+        <p class="result-label">Estimated Market Value</p>
+        <div class="result-price">${formatter.format(prediction.price)}</div>
+        <div class="result-badge">
+          <span>Model <strong>${prediction.model_used}</strong></span>
+          <span>${prediction.prediction_time_ms} ms</span>
+        </div>
+        ${renderSellSignal(sellSignal)}
+      </div>
+      <div class="result-hero-side">
+        <div class="result-signal">
+          <span>Confidence</span>
+          <strong>${conf}%</strong>
+          <div class="progress-track" style="margin-top:10px;">
+            <div class="progress-fill" style="width:${conf}%;background:${confBarColor};"></div>
+          </div>
+        </div>
+        <div class="result-signal">
+          <span>Quality Score</span>
+          <strong>${qual}/100</strong>
+          <div class="progress-track" style="margin-top:10px;">
+            <div class="progress-fill" style="width:${qual}%;background:${qualBarColor};"></div>
+          </div>
+        </div>
+        <div class="result-signal">
+          <span>Recommendation</span>
+          <strong>${rec.label}</strong>
+        </div>
       </div>
     </div>
 
@@ -364,14 +440,14 @@ function renderXai(prediction) {
       <div class="xai-grid">
         <div class="xai-card">
           <div class="xai-card-title">
-            <i data-lucide="trending-up" style="width:14px;height:14px;color:#2dd4bf;"></i>
+          <i data-lucide="trending-up" style="width:14px;height:14px;color:var(--accent-3);"></i>
             Positive Factors (${posFactors ? xai.positive_factors.length : 0})
           </div>
           ${posFactors || '<p style="color:var(--text-muted);font-size:0.82rem;">No strong positive factors identified.</p>'}
         </div>
         <div class="xai-card">
           <div class="xai-card-title">
-            <i data-lucide="trending-down" style="width:14px;height:14px;color:#fb7185;"></i>
+          <i data-lucide="trending-down" style="width:14px;height:14px;color:var(--danger);"></i>
             Negative Factors (${negFactors ? xai.negative_factors.length : 0})
           </div>
           ${negFactors || '<p style="color:var(--text-muted);font-size:0.82rem;">No significant negative factors identified.</p>'}
@@ -395,8 +471,8 @@ function renderDashboardCharts(metrics) {
   const dists = metrics.distributions;
   if (!dists) return;
 
-  const textColor = getComputedStyle(document.body).getPropertyValue("--text").trim();
-  const mutedColor = getComputedStyle(document.body).getPropertyValue("--text-muted").trim();
+  const palette = chartPalette();
+  const mutedColor = palette.muted;
   const chartBase = (id, emptyId) => {
     const el = document.querySelector(id);
     const empty = document.querySelector(emptyId);
@@ -413,7 +489,7 @@ function renderDashboardCharts(metrics) {
     },
     scales: {
       x: { ticks: { color: mutedColor, font: { size: 9 } }, grid: { display: false } },
-      y: { ticks: { color: mutedColor, font: { size: 9 } }, grid: { color: "rgba(255,255,255,0.04)" }, beginAtZero: true },
+      y: { ticks: { color: mutedColor, font: { size: 9 } }, grid: { color: palette.grid }, beginAtZero: true },
     },
   });
 
@@ -426,7 +502,7 @@ function renderDashboardCharts(metrics) {
         type: "bar",
         data: {
           labels: dists.price_distribution.map(d => d.label),
-          datasets: [{ label: "Count", data: dists.price_distribution.map(d => d.count), backgroundColor: "#38bdf8", borderRadius: 4 }],
+          datasets: [{ label: "Count", data: dists.price_distribution.map(d => d.count), backgroundColor: palette.accent, borderRadius: 6 }],
         },
         options: opts("Price Distribution"),
       });
@@ -444,7 +520,7 @@ function renderDashboardCharts(metrics) {
         type: "bar",
         data: {
           labels: dists.quality_distribution.map(d => d.label),
-          datasets: [{ label: "Count", data: dists.quality_distribution.map(d => d.count), backgroundColor: "#2dd4bf", borderRadius: 4 }],
+          datasets: [{ label: "Count", data: dists.quality_distribution.map(d => d.count), backgroundColor: palette.emerald, borderRadius: 6 }],
         },
         options: opts("Quality Distribution"),
       });
@@ -464,8 +540,8 @@ function renderDashboardCharts(metrics) {
           labels: dists.timeline.map(d => d.date),
           datasets: [{
             label: "Price", data: dists.timeline.map(d => d.price),
-            borderColor: "#38bdf8", backgroundColor: "rgba(56,189,248,0.08)",
-            fill: true, tension: 0.3, pointRadius: 3, pointBackgroundColor: "#38bdf8",
+            borderColor: palette.accent, backgroundColor: "rgba(94,231,255,0.10)",
+            fill: true, tension: 0.35, pointRadius: 3, pointBackgroundColor: palette.gold,
           }],
         },
         options: {
@@ -474,7 +550,7 @@ function renderDashboardCharts(metrics) {
           plugins: { legend: { display: false } },
           scales: {
             x: { ticks: { color: mutedColor, font: { size: 9 }, maxTicksLimit: 8 }, grid: { display: false } },
-            y: { ticks: { color: mutedColor, font: { size: 9 } }, grid: { color: "rgba(255,255,255,0.04)" } },
+            y: { ticks: { color: mutedColor, font: { size: 9 } }, grid: { color: palette.grid } },
           },
         },
       });
@@ -487,7 +563,7 @@ function renderDashboardCharts(metrics) {
   if (dists.recommendation_breakdown && dists.recommendation_breakdown.length) {
     const c = chartBase("#recBreakdownChart", "#recBreakdownEmpty");
     if (c) {
-      const recColors = ["#2dd4bf", "#38bdf8", "#fbbf24", "#fb7185", "#a855f7", "#94a3b8"];
+      const recColors = [palette.emerald, palette.accent, palette.gold, palette.danger, palette.violet, palette.muted];
       recBreakdownChart?.destroy();
       recBreakdownChart = new Chart(c.el, {
         type: "doughnut",
@@ -512,8 +588,9 @@ function renderDashboardCharts(metrics) {
 /* ─── Charts ─── */
 function chartOptions() {
   const body = document.body;
-  const text = getComputedStyle(body).getPropertyValue("--text").trim();
-  const muted = getComputedStyle(body).getPropertyValue("--text-muted").trim();
+  const palette = chartPalette();
+  const text = palette.text;
+  const muted = palette.muted;
   return {
     responsive: true,
     maintainAspectRatio: true,
@@ -525,11 +602,11 @@ function chartOptions() {
     scales: {
       x: {
         ticks: { color: muted, font: { size: 10 } },
-        grid: { color: "rgba(255,255,255,0.06)" },
+        grid: { color: palette.grid },
       },
       y: {
         ticks: { color: muted, font: { size: 10 } },
-        grid: { color: "rgba(255,255,255,0.06)" },
+        grid: { color: palette.grid },
       },
     },
   };
@@ -538,7 +615,8 @@ function chartOptions() {
 function renderCharts(prediction) {
   const contributions = prediction.contributions;
   const inputs = prediction.inputs;
-  const colors = ["#38bdf8", "#2dd4bf", "#a7f3d0", "#fbbf24", "#fb7185", "#c084fc"];
+  const palette = chartPalette();
+  const colors = [palette.accent, palette.emerald, "#b7f7df", palette.gold, palette.danger, palette.violet];
 
   contributionChart?.destroy();
   const cc = document.querySelector("#contributionChart");
@@ -553,7 +631,7 @@ function renderCharts(prediction) {
         responsive: true,
         maintainAspectRatio: true,
         plugins: {
-          legend: { position: "bottom", labels: { color: getComputedStyle(document.body).getPropertyValue("--text").trim(), font: { size: 10 } } },
+          legend: { position: "bottom", labels: { color: palette.text, font: { size: 10 } } },
         },
       },
     });
@@ -569,8 +647,8 @@ function renderCharts(prediction) {
         datasets: [{
           label: "Input values",
           data: [inputs.carat, inputs.depth, inputs.table, inputs.x, inputs.y, inputs.z],
-          backgroundColor: "#38bdf8",
-          borderRadius: 4,
+          backgroundColor: palette.accent,
+          borderRadius: 6,
         }],
       },
       options: chartOptions(),
@@ -587,8 +665,8 @@ function renderCharts(prediction) {
         datasets: [{
           label: "Price",
           data: [1200, 4500, 9500, prediction.price],
-          backgroundColor: ["#94a3b8", "#2dd4bf", "#fbbf24", "#38bdf8"],
-          borderRadius: 4,
+          backgroundColor: [palette.muted, palette.emerald, palette.gold, palette.accent],
+          borderRadius: 6,
         }],
       },
       options: chartOptions(),
@@ -605,7 +683,7 @@ function renderHistory(items) {
   if (!tbody) return;
 
   if (items.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:24px;">No predictions yet</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px;">No predictions yet</td></tr>`;
     return;
   }
 
@@ -619,6 +697,7 @@ function renderHistory(items) {
         return `
     <tr data-id="${item.id}">
       <td>${formatter.format(item.price)}</td>
+      <td>${renderSellSignal(item.sell_signal || "insufficient_data", true)}</td>
       <td>${item.inputs.carat} ct | ${item.inputs.cut} | ${item.inputs.color} | ${item.inputs.clarity}</td>
       <td>${item.quality_score ? `<span class="hist-quality ${badge}">${item.quality_score}</span>` : "—"}</td>
       <td style="font-size:0.78rem;color:var(--text-muted);">${item.created_at ? item.created_at.slice(0, 10) : ""}</td>
@@ -1543,6 +1622,8 @@ function toggleTheme() {
 function hydrateTheme() {
   const saved = localStorage.getItem("diamond-theme");
   if (saved === "light") {
+    document.body.classList.add("light");
+  } else if (!saved && window.matchMedia?.("(prefers-color-scheme: light)").matches) {
     document.body.classList.add("light");
   }
 }

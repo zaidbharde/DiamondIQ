@@ -7,7 +7,7 @@
     <title>AI Diamond Valuation Assistant</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -37,12 +37,27 @@
         <!-- ═══ HOME PAGE ═══ -->
         <section id="home" class="page active">
           <div class="hero">
+            <div class="facet-hero" aria-hidden="true">
+              <div class="facet-gem">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+              <div class="facet-ray ray-one"></div>
+              <div class="facet-ray ray-two"></div>
+              <div class="facet-ray ray-three"></div>
+            </div>
             <div class="hero-badge">
               <i data-lucide="sparkles" style="width:14px;height:14px;"></i>
-              ML Confidence: 93.7%
+              Gemology-grade ML Confidence: 93.7%
             </div>
-            <h1>AI <span>Diamond Valuation</span> Assistant</h1>
-            <p>Professional-grade diamond price prediction powered by machine learning. Upload an image, scan a certificate, or enter details manually.</p>
+            <h1>DiamondIQ <span>Valuation Lab</span></h1>
+            <p>Price diamonds with the discipline of a grading report: 4C inputs, certificate OCR, AI image suggestions, quality scoring, and explainable value signals in one focused bench.</p>
+            <div class="hero-proof">
+              <span>4C model</span>
+              <span>GIA / IGI OCR</span>
+              <span>XAI report</span>
+            </div>
           </div>
 
           <div class="feature-grid">
@@ -190,6 +205,13 @@
               <p>Upload a clear diamond photo for AI-assisted analysis. Supported: PNG, JPG, JPEG, WEBP (max 10 MB).</p>
             </div>
 
+            <div class="flow-steps" aria-label="Image analysis steps">
+              <span class="flow-step active">Upload</span>
+              <span class="flow-step">Analyze</span>
+              <span class="flow-step">Review</span>
+              <span class="flow-step">Predict</span>
+            </div>
+
             <div class="upload-zone" id="imageUploadZone">
               <div class="upload-zone-content" id="imageUploadZoneContent">
                 <div class="upload-zone-icon"><i data-lucide="camera"></i></div>
@@ -276,6 +298,13 @@
             <div class="form-page-header">
               <h2>Upload Certificate</h2>
               <p>Upload a GIA or IGI certificate. Supported formats: PDF, JPG, JPEG, PNG.</p>
+            </div>
+
+            <div class="flow-steps" aria-label="Certificate parsing steps">
+              <span class="flow-step active">Upload</span>
+              <span class="flow-step">Parse</span>
+              <span class="flow-step">Review</span>
+              <span class="flow-step">Predict</span>
             </div>
 
             <div class="upload-zone" id="uploadZone">
@@ -430,6 +459,7 @@
                 <thead>
                   <tr>
                     <th>Price</th>
+                    <th>Signal</th>
                     <th>Diamond</th>
                     <th>Quality</th>
                     <th>Date</th>
@@ -450,8 +480,12 @@
     <div id="toast" class="toast" role="status"></div>
     <div id="loader" class="loader-overlay" hidden>
       <div class="loader-box">
-        <div class="spinner"></div>
-        <p>Analyzing diamond attributes...</p>
+        <div class="loader-gem" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <p>Refracting diamond attributes...</p>
       </div>
     </div>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>

@@ -34,6 +34,7 @@ from .ml_service import PredictionService
 from .ocr_service import allowed_file, extract_text_from_image, extract_text_from_pdf
 from .report_generator import generate_report
 from .validation import CLARITIES, COLORS, CUTS, sanitize_payload
+from .sell_signal import get_sell_signal
 from .xai import analyze_features
 
 
@@ -256,6 +257,12 @@ def predict():
         result["recommendation"] = report["recommendation"]
         result["xai"] = xai
         result["report"] = report
+        result["sell_signal"] = get_sell_signal(
+            inputs,
+            result["price"],
+            report["quality_score"],
+            current_app.config["DATABASE_PATH"],
+        )
 
         # Enrich payload for DB storage
         result["recommendation_label"] = report["recommendation"]["label"]
